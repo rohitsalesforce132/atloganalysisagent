@@ -1,0 +1,37 @@
+2026-04-26T08:12:01Z ERROR [tmf620-api] ERR-4001 Invalid product specification reference spec-8842 in offering creation
+2026-04-26T08:12:01Z WARN  [tmf620-api] Specification spec-8842 lifecycleStatus=In Study, expected Active|Launched
+2026-04-26T08:12:03Z INFO  [tmf620-api] POST /productOffering 400 45ms
+2026-04-26T08:15:22Z ERROR [tmf620-api] ERR-4091 Duplicate product offering name "5G-Premium-Plan" in catalog sales-2026
+2026-04-26T08:15:23Z WARN  [tmf620-api] Existing offering off-19283 lifecycleStatus=Obsolete, soft-deleted
+2026-04-26T08:18:45Z ERROR [pricing-engine] ERR-5002 Pricing engine timeout after 5000ms for offering off-22001
+2026-04-26T08:18:46Z WARN  [pricing-engine] PostgreSQL connection pool exhausted: active=50 idle=0 waiting=12
+2026-04-26T08:18:47Z ERROR [pricing-engine] Failed to calculate price for cart-9912, falling back to cached price
+2026-04-26T08:22:10Z ERROR [catalog-search] ERR-5001 Search index stale: DB count=48291, index count=48103, delta=188
+2026-04-26T08:22:11Z WARN  [catalog-search] Last reindex completed 2h47m ago, expected interval 30m
+2026-04-26T08:22:12Z INFO  [catalog-search] Triggering manual reindex via admin endpoint
+2026-04-26T08:25:33Z ERROR [tmf620-api] ERR-4003 Invalid lifecycle transition: Launched → In Design for offering off-33001
+2026-04-26T08:25:34Z WARN  [tmf620-api] Valid transitions from Launched: Retired, Obsolete
+2026-04-26T08:28:01Z ERROR [tmf620-api] ERR-4221 Cannot delete offering off-19283: 47 active subscriptions found
+2026-04-26T08:28:02Z WARN  [tmf620-api] Earliest subscription expires 2026-06-15, earliest possible deletion
+2026-04-26T08:30:15Z CRITICAL [api-gateway] TMF620 health check failed 3 consecutive times, triggering P1 alert
+2026-04-26T08:30:16Z ERROR [tmf620-api] All endpoints returning 503 Service Unavailable
+2026-04-26T08:30:17Z ERROR [k8s-pod] tmf620-api-7d4f8b CrashLoopBackOff: back-off 5s restart
+2026-04-26T08:30:18Z ERROR [k8s-pod] tmf620-api-7d4f8b container exit code 137 (OOMKilled)
+2026-04-26T08:30:19Z WARN  [k8s-pod] Pod memory request: 512Mi, limit: 1Gi, actual usage before kill: 1.02Gi
+2026-04-26T08:30:20Z INFO  [k8s-hpa] HorizontalPodAutoscaler scaling tmf620-api from 3 to 5 replicas
+2026-04-26T08:31:01Z ERROR [postgres] Connection refused to postgres-primary:5432 after 3 retries
+2026-04-26T08:31:02Z WARN  [patroni] PostgreSQL primary failover in progress, promoting replica postgres-replica-2
+2026-04-26T08:31:05Z INFO  [patroni] Failover complete: postgres-replica-2 is now primary
+2026-04-26T08:31:10Z ERROR [tmf620-api] Database migration v3.2.1 failed: column "market_segment" already exists
+2026-04-26T08:31:11Z WARN  [tmf620-api] Migration rollback triggered, deployment marked as failed
+2026-04-26T08:32:00Z INFO  [k8s-deploy] Rolling back deployment tmf620-api to revision 47 (previous stable)
+2026-04-26T08:32:30Z INFO  [tmf620-api] Health check passing, all pods running
+2026-04-26T08:33:00Z ERROR [redis] CLUSTERDOWN All slots not covered, split-brain detected between redis-0 and redis-3
+2026-04-26T08:33:01Z WARN  [redis] Cluster failover: fixing slots allocation via redis-cli --cluster fix
+2026-04-26T08:33:15Z INFO  [redis] Cluster state OK, 16384/16384 slots covered
+2026-04-26T08:35:00Z WARN  [monitoring] P95 latency spike: 2800ms (threshold: 500ms) on GET /productOffering
+2026-04-26T08:35:01Z WARN  [monitoring] Cache hit rate dropped to 42% (threshold: 80%)
+2026-04-26T08:35:02Z ERROR [tmf620-api] Query timeout: SELECT * FROM product_offering WHERE catalog_id=$1 took 8200ms
+2026-04-26T08:35:03Z WARN  [postgres] Slow query detected: seq scan on product_offering, missing index on catalog_id
+2026-04-26T08:36:00Z INFO  [admin] CREATE INDEX CONCURRENTLY idx_po_catalog ON product_offering(catalog_id) started
+2026-04-26T08:38:00Z INFO  [monitoring] P95 latency recovered to 320ms, cache hit rate 87%
