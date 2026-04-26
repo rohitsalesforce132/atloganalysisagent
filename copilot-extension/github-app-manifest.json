@@ -1,0 +1,17 @@
+{
+  "name": "Cortex Analyst",
+  "url": "https://YOUR-SERVER.herokuapp.com",
+  "hook_attributes": {
+    "url": "https://YOUR-SERVER.herokuapp.com/webhook"
+  },
+  "redirect_url": "https://YOUR-SERVER.herokuapp.com/auth/callback",
+  "setup_url": "https://YOUR-SERVER.herokuapp.com/setup",
+  "description": "Wiki-aware log analysis agent. Analyze production logs, find root causes, check SLAs, get resolution steps.",
+  "public": true,
+  "default_permissions": {
+    "contents": "read",
+    "issues": "read",
+    "copilot": "write"
+  },
+  "default_events": ["copilot"]
+}

@@ -1,18 +1,20 @@
 /**
  * Cortex Analyst — GitHub Copilot Extension
  *
- * A wiki-aware log analysis agent that runs as a GitHub Copilot Extension.
- * Users ask @cortex-analyst to analyze logs, check SLAs, find runbooks,
- * and get incident reports — all within GitHub Copilot Chat.
+ * This is the server that GitHub Copilot calls when a user types @cortex-analyst.
+ * It receives the user's message, runs the Python analysis engine, then
+ * streams the result back through Copilot's LLM for formatting.
  *
- * Architecture:
- *   GitHub Copilot Chat → this server → Python analysis engine → Copilot LLM → response
+ * Based on the official GitHub Copilot Extension pattern:
+ * https://github.com/copilot-extensions/blackbeard-extension
  *
- * Setup:
- *   1. npm install
- *   2. python3 -c "from src.tools import ToolRegistry; print('OK')"  # verify Python engine
- *   3. npm start
- *   4. Register as GitHub App with Copilot extension (see DEPLOY.md)
+ * Flow:
+ *   1. GitHub Copilot Chat sends POST to this server
+ *   2. Server extracts user message and calls Python scan.py
+ *   3. Python engine analyzes logs/errors against wiki docs
+ *   4. Analysis result injected as system message
+ *   5. Copilot LLM formats the response naturally
+ *   6. Streamed back to user in Copilot Chat
  */
 
 import { Octokit } from "@octokit/core";
@@ -26,167 +28,46 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = path.resolve(__dirname, "..");
 
 const app = express();
+app.use(express.json());
 
-// ─── Python Engine Bridge ───────────────────────────────────
-
-/**
- * Call a Cortex Analyst tool via Python.
- * Returns parsed JSON result.
- */
-function callTool(toolName, params = {}) {
-  const paramsJson = JSON.stringify(params).replace(/'/g, "'\\''");
-  const pythonCode = `
-import sys, os, json
-sys.path.insert(0, os.path.expanduser("${PROJECT_ROOT}"))
-os.chdir(os.path.expanduser("${PROJECT_ROOT}"))
-from src.tools import ToolRegistry
-from src.wiki_engine import WikiEngine
-
-wiki = WikiEngine()
-agent = ToolRegistry(wiki=wiki)
-
-# Load reference docs
-for d in ["troubleshooting", "runbooks", "sla", "specification"]:
-    p = os.path.join("references", d)
-    if os.path.isdir(p):
-        agent.call("ingest_directory", path=p)
-
-result = agent.call("${toolName}", **json.loads('${paramsJson}'))
-print(json.dumps({"output": result.output, "is_error": result.is_error, "data": result.data}))
-`;
-  try {
-    const output = execSync(`python3 -c '${pythonCode}'`, {
-      timeout: 30000,
-      maxBuffer: 5 * 1024 * 1024,
-      cwd: PROJECT_ROOT,
-    }).toString().trim();
-    return JSON.parse(output);
-  } catch (err) {
-    return { output: `Error: ${err.message}`, is_error: true, data: {} };
-  }
-}
-
-/**
- * Determine which tool to call based on user message.
- * This is a simple intent classifier — in production, the LLM handles this.
- */
-function classifyIntent(message) {
-  const lower = message.toLowerCase();
-
-  // Analysis requests
-  if (lower.includes("analyze") && (lower.includes("file") || lower.includes("log"))) {
-    const pathMatch = lower.match(/(?:file|log|path)[:\s]+([^\s,.]+)/);
-    return { tool: "analyze_file", params: { path: pathMatch ? pathMatch[1] : "" } };
-  }
-  if (lower.includes("analyze") || lower.includes("deep dive") || lower.includes("incident")) {
-    return { tool: "analyze_pending", hint: "needs_log_text" };
-  }
-
-  // Extract errors
-  if (lower.includes("error") && (lower.includes("extract") || lower.includes("show") || lower.includes("what"))) {
-    return { tool: "extract_errors", hint: "needs_log_text" };
-  }
-
-  // Knowledge queries
-  if (lower.includes("runbook")) {
-    const scenario = message.replace(/.*runbook[s]?\s*(?:for|about|on)?\s*/i, "").trim();
-    return { tool: "find_runbook", params: { scenario: scenario || "emergency recovery" } };
-  }
-  if (lower.includes("resolution") || lower.includes("fix") || lower.includes("how to fix")) {
-    const codeMatch = message.match(/ERR-\d{4}/i);
-    if (codeMatch) return { tool: "find_resolution", params: { error_code: codeMatch[0].toUpperCase() } };
-    return { tool: "find_resolution", params: { error_code: "" } };
-  }
-  if (lower.includes("sla") || lower.includes("threshold") || lower.includes("breach")) {
-    const numMatch = message.match(/(\d+)\s*ms/);
-    return { tool: "check_sla", params: { metric: "latency", value: numMatch ? parseInt(numMatch[1]) : 0 } };
-  }
-  if (lower.includes("search") || lower.includes("wiki") || lower.includes("document")) {
-    const query = message.replace(/.*(?:search|wiki|document|find)\s*(?:for|about|on)?\s*/i, "").trim();
-    return { tool: "wiki_search", params: { query: query || "troubleshooting" } };
-  }
-
-  // Report requests
-  if (lower.includes("report") || lower.includes("summary")) return { tool: "get_report", params: {} };
-  if (lower.includes("pattern")) return { tool: "get_patterns", params: {} };
-  if (lower.includes("incident") || lower.includes("chain")) return { tool: "get_incidents", params: {} };
-  if (lower.includes("recommend")) return { tool: "get_recommendations", params: {} };
-  if (lower.includes("timeline")) return { tool: "get_timeline", params: {} };
-
-  // Utils
-  if (lower.includes("health") || lower.includes("status")) return { tool: "health_check", params: {} };
-  if (lower.includes("stat")) return { tool: "get_stats", params: {} };
-  if (lower.includes("tool") || lower.includes("help")) return { tool: "list_tools", params: {} };
-
-  return { tool: "get_report", params: {} };
-}
-
-// ─── Routes ─────────────────────────────────────────────────
-
+// Health check
 app.get("/", (req, res) => {
   res.json({
     name: "Cortex Analyst",
     description: "Wiki-aware log analysis agent for GitHub Copilot",
     tools: 21,
     status: "running",
+    engine: PROJECT_ROOT,
   });
 });
 
-app.post("/", express.json(), async (req, res) => {
-  const tokenForUser = req.get("X-GitHub-Token");
-  const octokit = new Octokit({ auth: tokenForUser });
-  const user = await octokit.request("GET /user");
-
-  const payload = req.body;
-  const userMessage = payload.messages[payload.messages.length - 1]?.content || "";
-
-  console.log(`[${new Date().toISOString()}] @${user.data.login}: ${userMessage}`);
-
-  // Call Python analysis engine
-  const intent = classifyIntent(userMessage);
-  let toolResult;
-
-  if (intent.hint === "needs_log_text") {
-    // Extract any log text from the message
-    const logLines = userMessage.split("\n").filter(l =>
-      /^\d{4}-\d{2}-\d{2}T/.test(l.trim()) ||
-      /ERROR|WARN|INFO|CRITICAL/.test(l)
-    );
-    if (logLines.length > 0) {
-      toolResult = callTool("analyze_logs", { log_text: logLines.join("\n") });
-    } else {
-      toolResult = callTool(intent.tool, intent.params);
-    }
-  } else {
-    toolResult = callTool(intent.tool, intent.params);
-  }
-
-  // Build enriched messages for Copilot LLM
-  const messages = payload.messages;
-  messages.unshift({
-    role: "system",
-    content: `You are Cortex Analyst, a wiki-aware log analysis agent. You help engineers analyze production logs, find root causes, check SLAs, and generate incident reports.
-
-You have access to a Python analysis engine that has already processed the user's request. Here is the tool result:
-
-**Tool Called:** ${intent.tool}
-**Result:** ${toolResult.is_error ? "ERROR" : "SUCCESS"}
-**Output:** ${toolResult.output}
-**Data:** ${JSON.stringify(toolResult.data, null, 2).substring(0, 3000)}
-
-Based on this tool result, provide a clear, actionable response to @${user.data.login}.
-- If patterns were detected, explain them in plain language
-- If root causes were found, list them with resolution steps
-- If SLA breaches detected, highlight them
-- If recommendations exist, prioritize them
-- Always cite the wiki sources used
-
-Keep the response concise and action-oriented. Use bullet points and tables when appropriate.`
-  });
-
-  // Call Copilot's LLM to format the response
+// Copilot extension endpoint
+app.post("/", async (req, res) => {
   try {
-    const copilotLLMResponse = await fetch(
+    // 1. Get user identity
+    const tokenForUser = req.get("X-GitHub-Token");
+    const octokit = new Octokit({ auth: tokenForUser });
+    const user = await octokit.request("GET /user");
+    const username = user.data.login;
+
+    // 2. Extract user message
+    const payload = req.body;
+    const messages = payload.messages;
+    const userMessage = messages[messages.length - 1]?.content || "";
+
+    console.log(`[${new Date().toISOString()}] @${username}: ${userMessage.substring(0, 200)}`);
+
+    // 3. Run Python analysis engine
+    const analysisResult = runAnalysis(userMessage);
+
+    // 4. Build enriched messages for Copilot LLM
+    messages.unshift({
+      role: "system",
+      content: buildSystemPrompt(username, analysisResult),
+    });
+
+    // 5. Call Copilot LLM to format the response
+    const copilotResponse = await fetch(
       "https://api.githubcopilot.com/chat/completions",
       {
         method: "POST",
@@ -197,17 +78,154 @@ Keep the response concise and action-oriented. Use bullet points and tables when
         body: JSON.stringify({ messages, stream: true }),
       }
     );
-    Readable.from(copilotLLMResponse.body).pipe(res);
+
+    // 6. Stream response back to user
+    Readable.from(copilotResponse.body).pipe(res);
   } catch (err) {
-    // Fallback: return raw tool result if Copilot LLM fails
-    res.type("text/plain");
-    res.send(`🧠 **Cortex Analyst** (${intent.tool})\n\n${toolResult.output}\n\n${JSON.stringify(toolResult.data, null, 2)}`);
+    console.error("Error:", err.message);
+    res.type("text/plain").status(500).send(
+      `🧠 Cortex Analyst encountered an error: ${err.message}\n\n` +
+      `Make sure Python 3 is installed and the analysis engine is accessible.`
+    );
   }
 });
+
+/**
+ * Run the Python analysis engine on the user's message.
+ */
+function runAnalysis(userMessage) {
+  const escapedMessage = userMessage.replace(/'/g, "'\\''").replace(/\n/g, "\\n");
+  const pythonScript = `
+import sys, os, json
+sys.path.insert(0, "${PROJECT_ROOT}")
+os.chdir("${PROJECT_ROOT}")
+from scan import scan
+result = scan("${escapedMessage}")
+print(json.dumps(result))
+`;
+
+  try {
+    const output = execSync(`python3 -c '${pythonScript}'`, {
+      timeout: 30000,
+      maxBuffer: 5 * 1024 * 1024,
+      cwd: PROJECT_ROOT,
+    }).toString().trim();
+
+    return JSON.parse(output);
+  } catch (err) {
+    return {
+      mode: "error",
+      error: err.message,
+      wiki_matches: [],
+      resolutions: [],
+    };
+  }
+}
+
+/**
+ * Build system prompt with analysis context.
+ */
+function buildSystemPrompt(username, result) {
+  if (result.error) {
+    return `You are Cortex Analyst, a log analysis agent. Tell @${username} that an error occurred: ${result.error}. Suggest they check that Python 3 and the cortex-analyst repo are properly set up.`;
+  }
+
+  let context = `You are Cortex Analyst, a wiki-aware production log analysis agent. You help @${username} analyze errors, find root causes, check SLAs, and get resolution steps.
+
+## Analysis Result
+**Mode:** ${result.mode}
+**Input:** ${result.input || "N/A"}
+`;
+
+  if (result.mode === "log_analysis" && result.analysis) {
+    const a = result.analysis;
+    context += `
+**Severity:** ${a.severity || "UNKNOWN"}
+**Total entries:** ${a.total_entries || 0}
+**Errors:** ${a.errors || 0}
+**Patterns detected:** ${a.patterns || 0}
+**Incident chains:** ${a.incidents || 0}
+**Confidence:** ${Math.round((a.confidence || 0) * 100)}%
+`;
+
+    if (result.patterns?.length > 0) {
+      context += `\n**Patterns:**\n`;
+      for (const p of result.patterns.slice(0, 10)) {
+        context += `- ${p.name} [${p.type}] in ${p.service} (${p.entries} hits)\n`;
+      }
+    }
+
+    if (result.incidents?.length > 0) {
+      for (const inc of result.incidents) {
+        context += `\n**Incident ${inc.chain_id} [${inc.severity}]**\n`;
+        context += `Blast radius: ${inc.blast_radius?.join(", ")}\n`;
+        for (const c of inc.correlations?.slice(0, 5) || []) {
+          context += `- ${c.pattern_name} (${c.pattern_type}) confidence=${Math.round(c.confidence * 100)}%\n`;
+          if (c.root_cause && !c.root_cause.includes("not explicitly")) {
+            context += `  Root cause: ${c.root_cause.substring(0, 150)}\n`;
+          }
+          if (c.resolution_steps?.length > 0) {
+            context += `  Resolution: ${c.resolution_steps.length} steps available\n`;
+          }
+          if (c.sla_breach) {
+            context += `  ⚠️ SLA BREACH: ${c.sla_breach.metric}=${c.sla_breach.value} > ${c.sla_breach.threshold}\n`;
+          }
+        }
+      }
+    }
+
+    if (result.recommendations?.length > 0) {
+      context += `\n**Recommendations:**\n`;
+      for (const r of result.recommendations.slice(0, 5)) {
+        context += `- [${r.priority}] ${r.title}\n`;
+        if (r.action) context += `  → ${r.action.substring(0, 120)}\n`;
+      }
+    }
+  } else {
+    // Error lookup mode
+    if (result.error_codes?.length > 0) {
+      context += `\n**Error codes found:** ${result.error_codes.join(", ")}\n`;
+    }
+    if (result.resolutions?.length > 0) {
+      context += `\n**Resolution docs:**\n`;
+      for (const r of result.resolutions) {
+        context += `- ${r.title} [${r.type}]\n`;
+      }
+    }
+    if (result.wiki_matches?.length > 0) {
+      context += `\n**Wiki matches:**\n`;
+      for (const w of result.wiki_matches) {
+        context += `- ${w.title} [${w.type}] (relevance: ${w.score})\n`;
+      }
+    }
+    if (result.runbooks?.length > 0) {
+      context += `\n**Runbooks:**\n`;
+      for (const rb of result.runbooks) {
+        context += `- ${rb.title}\n`;
+      }
+    }
+    if (result.sla_check) {
+      const s = result.sla_check;
+      context += `\n**SLA Check:** ${s.metric}=${s.value} (threshold: ${s.threshold}) ${s.breached ? "⚠️ BREACHED" : "✅ OK"}\n`;
+    }
+  }
+
+  context += `
+## Instructions
+Based on the analysis above, provide a clear, concise response to @${username}:
+- Explain what happened in plain language
+- List root causes with specific resolution steps
+- Highlight any SLA breaches
+- Prioritize recommendations
+- Cite wiki sources where applicable
+- Keep it action-oriented and brief`;
+
+  return context;
+}
 
 const port = Number(process.env.PORT || "3000");
 app.listen(port, () => {
   console.log(`🧠 Cortex Analyst Copilot Extension running on port ${port}`);
-  console.log(`   Python engine: ${PROJECT_ROOT}`);
-  console.log(`   Available at: http://localhost:${port}`);
+  console.log(`   Repo: ${PROJECT_ROOT}`);
+  console.log(`   Endpoint: http://localhost:${port}`);
 });
