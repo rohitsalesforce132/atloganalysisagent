@@ -1,4 +1,4 @@
-"""Comprehensive tests for Cortex Analyst — Unified Wiki + Log Analysis Agent."""
+"""Comprehensive tests for APILoganalysisExpert — Unified Wiki + Log Analysis Agent."""
 import pytest, sys, os, time, json
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -172,7 +172,7 @@ class TestToolRegistry:
     def test_system_prompt(self):
         reg = _make_registry()
         prompt = reg.get_system_prompt()
-        assert 'Cortex Analyst' in prompt
+        assert 'APILoganalysisExpert' in prompt
         assert 'analyze_logs' in prompt
 
     def test_unknown_tool(self):

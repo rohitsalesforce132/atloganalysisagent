@@ -1,4 +1,4 @@
-# Cortex Analyst — Wiki-Aware Log Analysis Agent
+# APILoganalysisExpert — Wiki-Aware Log Analysis Agent
 
 An AI agent that combines a knowledge engine (runbooks, SLAs, troubleshooting) with a log analysis expert, exposed through Anthropic-style tool definitions.
 
@@ -45,7 +45,7 @@ prompt = agent.get_system_prompt()    # System prompt with tool descriptions
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                   Cortex Analyst Agent                   │
+│                   APILoganalysisExpert Agent                   │
 │                                                         │
 │  ┌─────────────────────┐  ┌─────────────────────────┐  │
 │  │  references/         │  │  Tool Registry (21)      │  │
@@ -74,7 +74,7 @@ prompt = agent.get_system_prompt()    # System prompt with tool descriptions
 ## Folder Structure
 
 ```
-cortex-analyst/
+APILoganalysisExpert/
 ├── references/                    # Production knowledge base
 │   ├── runbooks/                  # Step-by-step incident procedures
 │   ├── troubleshooting/           # Error code resolution guides

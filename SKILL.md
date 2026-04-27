@@ -1,11 +1,11 @@
 ---
-name: cortex-analyst
+name: APILoganalysisExpert
 description: Analyze production errors and logs instantly. Paste any error, log snippet, or error code — get root cause analysis, resolution steps, SLA breach detection, and runbook references. Hybrid engine combining deterministic pattern detection (21 tools) with LLM reasoning for deep contextual analysis. Supports TMF620 API errors, Kubernetes pod crashes, database failovers, OOM kills, latency spikes, and cache degradation.
 version: 2.0.0
 homepage: https://github.com/rohitsalesforce132/logagent
 ---
 
-# 🧠 Cortex Analyst — Production Error & Log Analysis Skill
+# 🧠 APILoganalysisExpert — Production Error & Log Analysis Skill
 
 When the user pastes an error, log snippet, error code, or describes a production issue, analyze it using this two-layer approach.
 
@@ -52,10 +52,10 @@ cd /home/rohit/.gemini/antigravity/scratch/log-analysis-agent && python3 scan.py
 
 **For multi-line logs** (with timestamps), write to temp file first:
 ```bash
-cat > /tmp/cortex_input.log << 'LOGEOF'
+cat > /tmp/apilog_input.log << 'LOGEOF'
 USER_LOG_TEXT_HERE
 LOGEOF
-cd /home/rohit/.gemini/antigravity/scratch/log-analysis-agent && python3 scan.py < /tmp/cortex_input.log --json
+cd /home/rohit/.gemini/antigravity/scratch/log-analysis-agent && python3 scan.py < /tmp/apilog_input.log --json
 ```
 
 ### Step 2: Read relevant reference docs
@@ -75,7 +75,7 @@ Using the scan.py JSON output AND the reference docs, provide a comprehensive an
 #### Analysis Report Format
 
 ```
-## 🧠 Cortex Analyst — [Error Type] Analysis
+## 🧠 APILoganalysisExpert — [Error Type] Analysis
 
 ### Severity: [CRITICAL/ERROR/WARN] [emoji]
 

@@ -61,7 +61,7 @@ class ToolDefinition:
 
 
 class ToolRegistry:
-    """Registry of Anthropic-style tools for the Cortex Analyst agent.
+    """Registry of Anthropic-style tools for the APILoganalysisExpert agent.
 
     Tools are organized into 4 categories:
     - ANALYZE: Log parsing, pattern detection, deep analysis
@@ -545,7 +545,7 @@ class ToolRegistry:
         """Generate system prompt with tool descriptions for LLM."""
         tools_json = json.dumps(self.get_tool_definitions(), indent=2)
         return (
-            "You are Cortex Analyst, an expert log analysis agent with access to the following tools.\n"
+            "You are APILoganalysisExpert, an expert log analysis agent with access to the following tools.\n"
             "Use these tools to analyze production logs, search documentation, and produce incident reports.\n\n"
             f"Available tools:\n{tools_json}\n\n"
             "Guidelines:\n"

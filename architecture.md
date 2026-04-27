@@ -1,8 +1,8 @@
-# Cortex Analyst — Complete Codebase Walkthrough
+# APILoganalysisExpert — Complete Codebase Walkthrough
 
 ## What This Project Is
 
-**Cortex Analyst** is a production log analysis agent that combines a **documentation knowledge base** with a **log pattern detection engine**. When you paste an error or a log snippet, it:
+**APILoganalysisExpert** is a production log analysis agent that combines a **documentation knowledge base** with a **log pattern detection engine**. When you paste an error or a log snippet, it:
 
 1. Parses the logs into structured entries
 2. Detects patterns (OOM kills, failovers, timeouts, etc.)
@@ -460,7 +460,7 @@ definitions = registry.get_tool_definitions()
 
 # Get a system prompt with tool descriptions embedded
 prompt = registry.get_system_prompt()
-# → "You are Cortex Analyst, an expert log analysis agent with access to the following tools..."
+# → "You are APILoganalysisExpert, an expert log analysis agent with access to the following tools..."
 ```
 
 ### Call Logging
@@ -515,7 +515,7 @@ python3 scan.py "ERR-4001" --json
 The `format_output()` function produces emoji-rich, structured output:
 
 ```
-🧠 CORTEX ANALYST — Log Analysis
+🧠 APILOGANALYSISEXPERT — Log Analysis
 ==================================================
 Severity: CRITICAL
 Entries: 38 | Errors: 10

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Cortex Analyst — Instant Error Scanner
+APILoganalysisExpert — Instant Error Scanner
 Paste any error/log text, get instant analysis with wiki-backed resolution.
 
 Usage:
@@ -97,7 +97,7 @@ def format_output(results):
 
     if mode == 'log_analysis':
         a = results.get('analysis', {})
-        lines.append(f"🧠 CORTEX ANALYST — Log Analysis")
+        lines.append(f"🧠 APILOGANALYSISEXPERT — Log Analysis")
         lines.append(f"{'='*50}")
         lines.append(f"Severity: {a.get('severity', 'UNKNOWN')}")
         lines.append(f"Entries: {a.get('total_entries', 0)} | Errors: {a.get('errors', 0)}")
@@ -135,7 +135,7 @@ def format_output(results):
                     sb = c['sla_breach']
                     lines.append(f"  │  ⚠️ SLA: {sb['metric']}={sb['value']} > {sb['threshold']}")
     else:
-        lines.append(f"🧠 CORTEX ANALYST — Error Lookup")
+        lines.append(f"🧠 APILOGANALYSISEXPERT — Error Lookup")
         lines.append(f"{'='*50}")
 
         if results.get('error_codes'):
