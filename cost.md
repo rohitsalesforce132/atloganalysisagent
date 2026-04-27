@@ -98,14 +98,14 @@ No Graph (brute force):
 
 Vector Search (embedding-based):
 ████████████████████ 22K tokens
-↑ Still needs embedding API calls ($0.02/query)
+↑ Still requires embedding API calls and vector database latency
 
 Knowledge Graph (4-Signal):
 ████████████ 14K tokens  ← 80% fewer tokens
 ↑ Zero API calls, pure computation
 
 Token savings: 69K → 14K = 80% reduction
-Cost savings: ~$0.15/query → ~$0.03/query (at GPT-4 pricing)
+Cost savings: $0.345/query → $0.070/query (at GPT-4o $5/1M pricing)
 ```
 
 ---
@@ -143,14 +143,14 @@ The query engine allocates the context window proportionally:
 
 ### Scenario: 1000 queries/day against 100-document knowledge base
 
-| Method | Tokens/Query | Daily Tokens | Daily Cost (GPT-4) | Monthly Cost |
-|--------|-------------|-------------|-------------------|-------------|
-| Brute force (all docs) | 69K | 69M | $207 | **$6,210** |
-| Vector search | 22K | 22M | $66 | **$1,980** |
-| **Knowledge graph (4-Signal)** | **14K** | **14M** | **$42** | **$1,260** |
-| Graph + auto-concise | 8K | 8M | $24 | **$720** |
+| Method | Tokens/Query | Daily Tokens | Daily Cost (GPT-4o) | Monthly Cost |
+|--------|-------------|-------------|--------------------|-------------|
+| Brute force (all docs) | 69K | 69M | $345 | **$10,350** |
+| Vector search | 22K | 22M | $110 | **$3,300** |
+| **Knowledge graph (4-Signal)** | **14K** | **14M** | **$70** | **$2,100** |
+| Graph + auto-concise | 8K | 8M | $40 | **$1,200** |
 
-**Savings: $6,210 → $720/month = $5,490/month saved (88% reduction)**
+**Savings: $10,350 → $1,200/month = $9,150/month saved (88% reduction with auto-concise)**
 
 ---
 
@@ -158,7 +158,7 @@ The query engine allocates the context window proportionally:
 
 > **Q: "How do you optimize token usage in RAG systems?"**
 >
-> I use a knowledge graph with 4 deterministic signals — direct links (×3.0), source overlap (×4.0), Adamic-Adar shared neighbors (×1.5), and type affinity (×1.0). Each signal is computed in-memory with zero LLM token cost. The graph pre-filters the document set from potentially thousands of pages down to the 5-10 most relevant, then a budget controller allocates the context window proportionally — 60% wiki, 20% history, 15% system prompt, 5% index. This cuts token consumption by 80% compared to brute-force document injection and avoids the per-query cost of embedding-based retrieval. At scale, this saves ~$5,500/month on a 1000 queries/day workload.
+> I use a knowledge graph with 4 deterministic signals — direct links (×3.0), source overlap (×4.0), Adamic-Adar shared neighbors (×1.5), and type affinity (×1.0). Each signal is computed in-memory with zero LLM token cost. The graph pre-filters the document set from potentially thousands of pages down to the 5-10 most relevant, then a budget controller allocates the context window proportionally — 60% wiki, 20% history, 15% system prompt, 5% index. This cuts token consumption by 80% compared to brute-force document injection and avoids the per-query overhead of embedding-based retrieval. At scale, this saves over $8,000/month on a 1000 queries/day workload using current flagship models like GPT-4o.
 
 ---
 
